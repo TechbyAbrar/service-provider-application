@@ -1,0 +1,144 @@
+# =========================
+# PYTHON
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+env/
+ENV/
+.venv/
+.env.bak
+env.bak/
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# =========================
+# DJANGO
+# =========================
+# SQLite database
+db.sqlite3
+db.sqlite3-journal
+
+# Static and media files (generated)
+staticfiles/
+static/
+media/
+*.log
+
+# Local Django secrets
+local_settings.py
+settings_local.py
+core/local_settings.py
+
+# =========================
+# ENVIRONMENT VARIABLES
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# IDEs & EDITORS
+# =========================
+# VSCode
+.vscode/
+*.code-workspace
+
+# JetBrains (PyCharm, IntelliJ)
+.idea/
+*.iml
+
+# =========================
+# TESTS / COVERAGE
+# =========================
+.coverage
+htmlcov/
+.tox/
+.nox/
+.pytest_cache/
+coverage.xml
+nosetests.xml
+*.cover
+*.py,cover
+.cache
+junit.xml
+
+# =========================
+# LOGS
+# =========================
+*.log
+logs/
+log/
+celerybeat-schedule
+celerybeat.pid
+
+# =========================
+# DOCKER
+# =========================
+# Docker files
+docker-compose.override.yml
+.docker/
+docker-compose.dev.yml
+*.pid
+
+# Docker build artifacts
+*.tar
+*.bak
+*.tmp
+
+# =========================
+# MISCELLANEOUS
+# =========================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# =========================
+# CACHE / TEMP
+# =========================
+*.swp
+*.swo
+*~
+.cache/
+tmp/
+temp/
+__pypackages__/
+
+# =========================
+# REDIS / CELERY
+# =========================
+*.rdb
+*.pid
+celerybeat-schedule.db
+celerybeat-schedule.*
+celerybeat.pid
+
+# =========================
+# GUNICORN / NGINX
+# =========================
+*.sock
+run/
+logs/
