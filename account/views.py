@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
-from .serializers import (SignupSerialzier, VerifyOTPSerializer, ResendVerifyOTPSerializer, LoginSerializer, ForgetPasswordSerializer, ResetPasswordSerializer, VerifyForgetPasswordOTPSerializer)
+from .serializers import (SignupSerialzier, VerifyOTPSerializer, ResendVerifyOTPSerializer, LoginSerializer, ForgetPasswordSerializer, ResetPasswordSerializer, VerifyForgetPasswordOTPSerializer, UpdateProfileSerializer)
 
 from core.utils import ResponseHandler
 from rest_framework.permissions import IsAuthenticated
@@ -130,3 +130,36 @@ class ResetPasswordView(APIView):
             message="Password reset failed.",
             errors=serializer.errors
         )
+
+from rest_framework import status
+
+# Update Profile
+class UpdateProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request):
+        try:
+            serializer = UpdateProfileSerializer(
+                instance=request.user,
+                data=request.data,
+                partial=True
+            )
+            serializer.is_valid(raise_exception=True)
+            user = serializer.save()
+
+            return ResponseHandler.success(
+                message="Profile updated successfully.",
+                data={"user": UserSerializer(user).data}
+            )
+
+        except Exception as exc:
+            # 🧠 Local safe fallback — bypass ResponseHandler's debug section
+            import traceback
+            debug_info = traceback.format_exc().splitlines()[-5:]
+
+            return ResponseHandler.error(
+                message="Profile update failed due to an unexpected error.",
+                errors=str(exc),
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                extra={"debug": debug_info}
+            )

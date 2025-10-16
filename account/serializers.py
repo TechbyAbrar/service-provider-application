@@ -25,12 +25,52 @@ class UserSerializer(serializers.ModelSerializer):
             "profile_pic_url",
             "country",
             "bio",
+            'company_name',
+            'cvr_number',
+            'bank_name',
+            'account_number',
+            'iban',
+            'swift_ibc',
             "is_verified",
             "created_at",
             "updated_at",
         ]
         read_only_fields = ["user_id", "is_verified", "created_at", "updated_at"]
-        
+
+
+
+class UpdateProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            "user_id",
+            "email",
+            "phone",
+            "username",
+            "full_name",
+            "profile_pic",
+            "profile_pic_url",
+            "country",
+            "bio",
+            'company_name',
+            'cvr_number',
+            'bank_name',
+            'account_number',
+            'iban',
+            'swift_ibc',
+            "is_verified",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["user_id","is_verified", "created_at", "updated_at"]
+
+    # def validate_username(self, value):
+    #     user = self.context['request'].user
+    #     if User.objects.exclude(pk=user.pk).filter(username=value).exists():
+    #         raise serializers.ValidationError("This username is already taken.")
+    #     return value
+
+
         
 class SignupSerialzier(serializers.Serializer):
     full_name = serializers.CharField(max_length=100)
