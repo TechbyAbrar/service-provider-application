@@ -132,10 +132,12 @@ class ResetPasswordView(APIView):
         )
 
 from rest_framework import status
+from rest_framework.parsers import MultiPartParser, FormParser
 
 # Update Profile
 class UpdateProfileView(APIView):
     permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
 
     def patch(self, request):
         try:
@@ -153,7 +155,7 @@ class UpdateProfileView(APIView):
             )
 
         except Exception as exc:
-            # 🧠 Local safe fallback — bypass ResponseHandler's debug section
+            # Local safe fallback — avoids 'request' bug in ResponseHandler debug
             import traceback
             debug_info = traceback.format_exc().splitlines()[-5:]
 
