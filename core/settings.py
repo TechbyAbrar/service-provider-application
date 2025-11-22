@@ -281,3 +281,6 @@ import os
 STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY")
 STRIPE_PUBLIC_KEY = env("STRIPE_PUBLIC_KEY")
 STRIPE_WEBHOOK_SECRET = env("STRIPE_WEBHOOK_SECRET")
+
+SUCCESS_URL = "https://www.facebook.com/"
+CANCEL_URL = "https://www.linkedin.com/"

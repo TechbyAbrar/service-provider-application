@@ -27,10 +27,7 @@ class SubscriptionPlan(models.Model):
         ordering = ["price"]
 
     def __str__(self):
-        return f"{self.get_name_display()} (${self.price}/month)"
-
-    def get_name_display(self):
-        return dict(self.PLAN_CHOICES).get(self.name, self.name.title())
+        return f"{self.name} (${self.price}/month)"
 
 
 class UserSubscription(models.Model):
@@ -48,6 +45,7 @@ class UserSubscription(models.Model):
             models.Index(fields=["user", "active"]),
             models.Index(fields=["stripe_subscription_id"]),
         ]
+        ordering = ["-start_date"]
 
     def __str__(self):
         return f"{self.user.email} - {self.plan.name}"

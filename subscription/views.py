@@ -4,7 +4,7 @@ from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.views import APIView
-from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 
@@ -24,6 +24,10 @@ class PlanPagination(PageNumberPagination):
     page_size_query_param = "page_size"
 
 
+# ============================
+#   SUBSCRIPTION PLAN CRUD
+# ============================
+
 class SubscriptionPlanAPIView(APIView):
     permission_classes = [AllowAny]
     pagination_class = PlanPagination
@@ -32,17 +36,41 @@ class SubscriptionPlanAPIView(APIView):
         paginator = self.pagination_class()
         plans = SubscriptionPlan.objects.all().order_by("price")
         page = paginator.paginate_queryset(plans, request)
+
         serializer = SubscriptionPlanSerializer(page, many=True)
         return paginator.get_paginated_response(serializer.data)
 
     def post(self, request):
         if not request.user.is_staff:
-            return Response({"detail": "Admin access only."}, status=403)
+            return Response({"detail": "Admin only."}, status=403)
+
         serializer = SubscriptionPlanSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        plan = serializer.save()
-        return Response(SubscriptionPlanSerializer(plan).data, status=201)
 
+        try:
+            with transaction.atomic():
+                # create plan
+                plan = serializer.save()
+
+                # create Stripe objects
+                StripeService.create_stripe_product(plan)
+
+            return Response(
+                SubscriptionPlanSerializer(plan).data,
+                status=201
+            )
+
+        except Exception as e:
+            logger.exception("[Plan] Failed to create plan")
+            return Response(
+                {"detail": str(e)},
+                status=500
+            )
+
+
+# ============================
+#   CHECKOUT SESSION API
+# ============================
 
 class CheckoutSessionAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -50,79 +78,201 @@ class CheckoutSessionAPIView(APIView):
     def post(self, request):
         serializer = CheckoutSessionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        plan = get_object_or_404(
-            SubscriptionPlan.objects.only("id", "stripe_price_id"),
-            id=serializer.validated_data["plan_id"],
-        )
 
-        session = StripeService.create_checkout_session(
-            email=request.user.email,
-            price_id=plan.stripe_price_id,
-            metadata={"user_id": request.user.id, "plan_id": plan.id},
-        )
-        return Response({"checkout_url": session.url}, status=200)
+        plan = get_object_or_404(SubscriptionPlan, id=serializer.validated_data["plan_id"])
 
+        try:
+            with transaction.atomic():
+
+                price_id = StripeService.create_stripe_product(plan)
+
+                current_sub = UserSubscription.objects.filter(
+                    user=request.user,
+                    active=True
+                ).first()
+
+                metadata = {"user_id": request.user.user_id, "plan_id": plan.id}
+
+                if current_sub:
+                    metadata["current_subscription_id"] = current_sub.stripe_subscription_id
+
+                session = StripeService.create_checkout_session(
+                    email=request.user.email,
+                    price_id=price_id,
+                    metadata=metadata,
+                )
+
+            return Response({"checkout_url": session.url}, status=200)
+
+        except Exception as e:
+            logger.exception("[Checkout] Failed to create session")
+            return Response({"detail": str(e)}, status=500)
+
+
+# ============================
+#   USER SUBSCRIPTIONS
+# ============================
 
 class UserSubscriptionAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        subs = UserSubscription.objects.filter(user=request.user).select_related("plan")
-        return Response(UserSubscriptionSerializer(subs, many=True).data, status=200)
+        subs = UserSubscription.objects.filter(
+            user=request.user
+        ).select_related("plan")
 
+        return Response(
+            UserSubscriptionSerializer(subs, many=True).data,
+            status=200
+        )
+
+
+# ============================
+#   CANCEL SUBSCRIPTION
+# ============================
+
+class CancelSubscriptionAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        import stripe
+
+        sub = UserSubscription.objects.filter(
+            user=request.user,
+            active=True
+        ).first()
+
+        if not sub:
+            return Response({"detail": "No active subscription found."}, status=404)
+
+        try:
+            with transaction.atomic():
+                stripe.Subscription.modify(
+                    sub.stripe_subscription_id,
+                    cancel_at_period_end=True
+                )
+
+                sub.active = False
+                sub.end_date = timezone.now()
+                sub.save()
+
+            return Response({"detail": "Subscription cancelled successfully."}, status=200)
+
+        except Exception as e:
+            logger.exception("[Cancel] Subscription cancellation failed")
+            return Response({"detail": str(e)}, status=400)
+
+
+# ============================
+#   STRIPE WEBHOOK
+# ============================
 
 class StripeWebhookAPIView(APIView):
+    """
+    Stripe Webhook Handler
+    - Handles checkout.session.completed
+    - Handles subscription lifecycle events (created, updated, deleted)
+    """
+
     permission_classes = [AllowAny]
     authentication_classes = []
 
     def post(self, request):
         payload = request.body
         sig_header = request.META.get("HTTP_STRIPE_SIGNATURE", "")
+
+        # 1️⃣ Verify Stripe signature
         try:
             event = StripeService.verify_webhook(payload, sig_header)
-        except Exception:
-            return Response(status=400)
+        except Exception as e:
+            logger.warning(f"[Stripe] Webhook verification failed: {str(e)}")
+            return Response({"detail": "Invalid signature"}, status=400)
 
         data = event["data"]["object"]
         event_type = event["type"]
-        logger.info(f"Received event: {event_type}")
+        logger.info(f"[Webhook] Received event: {event_type}, ID: {data.get('id')}")
 
         try:
+            # -----------------------------
+            # CHECKOUT SESSION COMPLETED
+            # -----------------------------
             if event_type == "checkout.session.completed":
-                user_id = data["metadata"]["user_id"]
-                plan_id = data["metadata"]["plan_id"]
-                subscription_id = data.get("subscription")
-                customer_id = data.get("customer")
+                self._handle_checkout_session_completed(data)
 
-                with transaction.atomic():
-                    UserSubscription.objects.filter(user_id=user_id, active=True).update(
-                        active=False, end_date=timezone.now()
-                    )
-                    UserSubscription.objects.create(
-                        user_id=user_id,
-                        plan_id=plan_id,
-                        start_date=timezone.now(),
-                        active=True,
-                        stripe_subscription_id=subscription_id,
-                        stripe_customer_id=customer_id,
-                    )
-                    logger.info(f"New subscription created for user {user_id}")
-
+            # -----------------------------
+            # SUBSCRIPTION STATUS UPDATES
+            # -----------------------------
             elif event_type.startswith("customer.subscription."):
-                subscription_id = data["id"]
-                status_stripe = data["status"]
-                sub = UserSubscription.objects.filter(
-                    stripe_subscription_id=subscription_id
-                ).first()
-                if sub:
-                    with transaction.atomic():
-                        sub.active = status_stripe in ("active", "trialing")
-                        if status_stripe in ("canceled", "unpaid"):
-                            sub.end_date = timezone.now()
-                        sub.save()
-                        logger.info(f"Updated subscription {sub.id} -> {status_stripe}")
-        except Exception as e:
-            logger.exception("Error handling webhook: %s", e)
-            return Response(status=500)
+                self._handle_subscription_event(data, event_type)
 
-        return Response(status=200)
+            # Log unhandled events
+            else:
+                logger.info(f"[Webhook] Unhandled event type: {event_type}")
+
+        except Exception as e:
+            logger.exception(f"[Webhook] Processing failed for event {event_type}: {str(e)}")
+            return Response({"detail": "Processing failed"}, status=500)
+
+        return Response({"received": True}, status=200)
+
+    # -----------------------------
+    # Private Handlers
+    # -----------------------------
+    @staticmethod
+    @transaction.atomic
+    def _handle_checkout_session_completed(data: dict):
+        """
+        Handles checkout.session.completed
+        Ensures idempotency by using update_or_create
+        """
+        user_id = int(data["metadata"]["user_id"])
+        plan_id = int(data["metadata"]["plan_id"])
+        stripe_subscription_id = data.get("subscription")
+        stripe_customer_id = data.get("customer")
+
+        # Deactivate any previous active subscription
+        UserSubscription.objects.filter(user_id=user_id, active=True).update(
+            active=False,
+            end_date=timezone.now()
+        )
+
+        # Create or update subscription
+        sub, created = UserSubscription.objects.update_or_create(
+            stripe_subscription_id=stripe_subscription_id,
+            defaults={
+                "user_id": user_id,
+                "plan_id": plan_id,
+                "start_date": timezone.now(),
+                "active": True,
+                "stripe_customer_id": stripe_customer_id,
+            },
+        )
+
+        action = "Created" if created else "Updated"
+        logger.info(f"[Webhook] {action} subscription {sub.id} for user {user_id}")
+
+    @staticmethod
+    @transaction.atomic
+    def _handle_subscription_event(data: dict, event_type: str):
+        """
+        Handles subscription events from Stripe
+        """
+        subscription_id = data["id"]
+        status = data.get("status")
+
+        sub = UserSubscription.objects.filter(stripe_subscription_id=subscription_id).first()
+        if not sub:
+            logger.warning(f"[Webhook] Subscription {subscription_id} not found in DB")
+            return
+
+        # Update subscription status
+        previous_active = sub.active
+        sub.active = status in ("active", "trialing")
+        if status in ("canceled", "unpaid"):
+            sub.end_date = timezone.now()
+        sub.save()
+
+        logger.info(
+            f"[Webhook] Subscription {sub.id} updated: "
+            f"status={status}, active {previous_active}->{sub.active}"
+        )
