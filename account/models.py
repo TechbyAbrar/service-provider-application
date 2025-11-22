@@ -53,6 +53,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     
     iban = models.CharField(max_length=255, null=True, blank=True)
     swift_ibc = models.CharField(max_length=255, blank=True, null=True)
+    
+    hourly_rate = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    profit_on_materials = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    risk_margin = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
 
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)

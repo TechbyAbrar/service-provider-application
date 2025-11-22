@@ -43,3 +43,9 @@ class ShareThoughts(models.Model):
     
     def __str__(self):
         return f"{self.user.username} - {self.thoughts[:30]}"
+    
+    
+
+
+
+# settings section

@@ -52,6 +52,8 @@ INSTALLED_APPS = [
     # Local apps
     'account',
     'privacy',
+    'supplychain',
+    'subscription',
     
     # Third party apps
     "rest_framework",
@@ -273,3 +275,9 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 # MESSAGEBIRD_API_KEY = env("MESSAGEBIRD_API_KEY")
 # DEFAULT_FROM_NUMBER = env("MESSAGEBIRD_SENDER", default="account")
+
+import os
+
+STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY")
+STRIPE_PUBLIC_KEY = env("STRIPE_PUBLIC_KEY")
+STRIPE_WEBHOOK_SECRET = env("STRIPE_WEBHOOK_SECRET")
