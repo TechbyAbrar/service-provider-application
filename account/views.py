@@ -1,13 +1,15 @@
 from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
-from .serializers import (SignupSerialzier, VerifyOTPSerializer, ResendVerifyOTPSerializer, LoginSerializer, ForgetPasswordSerializer, ResetPasswordSerializer, VerifyForgetPasswordOTPSerializer, UpdateProfileSerializer)
+from .serializers import (SignupSerialzier, VerifyOTPSerializer, ResendVerifyOTPSerializer, LoginSerializer, 
+                          ForgetPasswordSerializer, ResetPasswordSerializer,
+                          VerifyForgetPasswordOTPSerializer, UpdateProfileSerializer)
 
 from core.utils import ResponseHandler
 from rest_framework.permissions import IsAuthenticated
 from account.utils import generate_tokens_for_user
 from account.serializers import UserSerializer
-
+from django.conf import settings
 
 # Create your views here.
 class RegisterAPIView(APIView):
@@ -165,3 +167,70 @@ class UpdateProfileView(APIView):
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 extra={"debug": debug_info}
             )
+            
+            
+        
+# dashboard
+import logging
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAdminUser
+from rest_framework import status
+from .serializers import DashboardSerializer, UserSerializer
+from .services import DashboardService
+from .pagination import StandardResultsSetPagination
+
+logger = logging.getLogger(__name__)
+
+class DashboardAPIView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        try:
+            queryset = (
+                DashboardService.get_users_queryset()
+                .prefetch_related("subscriptions__plan")
+            )
+
+            paginator = StandardResultsSetPagination()
+            paginated_users = paginator.paginate_queryset(queryset, request)
+
+            users_serializer = UserSerializer(paginated_users, many=True)
+
+            data = {
+                "total_users": DashboardService.get_total_users(),
+                "total_verified": DashboardService.get_total_verified(),
+                "total_unverified": DashboardService.get_total_unverified(),
+                "total_earnings": DashboardService.get_total_earnings(),
+                "users": users_serializer.data,
+            }
+
+            serializer = DashboardSerializer(instance=data)
+            return paginator.get_paginated_response(serializer.data)
+
+        except Exception as e:
+            logger.exception("Error fetching dashboard data")
+            return Response(
+                {"detail": "Error fetching dashboard data"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+
+# User Detail API
+class UserDetailAPIView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request, user_id):
+        try:
+            from account.models import User
+            user = User.objects.prefetch_related("subscriptions__plan").filter(user_id=user_id).first()
+            if not user:
+                return Response({"detail": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+            serializer = UserSerializer(user)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.exception(f"Error fetching user {user_id}")
+            return Response({"detail": "Error fetching user data"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -9,10 +9,11 @@ from .utils import generate_otp, get_otp_expiry, send_otp_email, generate_tokens
 
 from rest_framework.exceptions import ValidationError
 
-
 User = get_user_model()
 
 class UserSerializer(serializers.ModelSerializer):
+    subscriptions = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = [
@@ -35,10 +36,23 @@ class UserSerializer(serializers.ModelSerializer):
             'profit_on_materials',
             'risk_margin',
             "is_verified",
+            "subscriptions",
             "created_at",
             "updated_at",
         ]
         read_only_fields = ["user_id", "is_verified", "created_at", "updated_at"]
+        
+    def get_subscriptions(self, obj):
+        return [
+            {
+                "plan_name": s.plan.name,
+                "price": s.plan.price,
+                "start_date": s.start_date,
+                "end_date": s.end_date,
+                "active": s.active,
+            }
+            for s in obj.subscriptions.select_related("plan").all()
+        ]
 
 
 
@@ -274,3 +288,13 @@ class ResetPasswordSerializer(serializers.Serializer):
         user.set_password(self.validated_data["new_password"])
         user.save(update_fields=["password"])
         return user
+    
+    
+    
+# dashboard
+class DashboardSerializer(serializers.Serializer):
+    total_users = serializers.IntegerField()
+    total_verified = serializers.IntegerField()
+    total_unverified = serializers.IntegerField()
+    total_earnings = serializers.DecimalField(max_digits=15, decimal_places=2)
+    users = serializers.ListField(child=serializers.DictField())

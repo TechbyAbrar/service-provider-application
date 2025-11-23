@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import (RegisterAPIView, VerifyOTPAPIView, ResendVerifyOTPAPIView, LoginView, ForgetPasswordView, VerifyForgetPasswordOTPView, ResetPasswordView, UpdateProfileView)
+from .views import (RegisterAPIView, VerifyOTPAPIView, ResendVerifyOTPAPIView, LoginView, ForgetPasswordView, VerifyForgetPasswordOTPView, ResetPasswordView, UpdateProfileView, DashboardAPIView, UserDetailAPIView)
 
 urlpatterns = [
     path("signup/", RegisterAPIView.as_view(), name="user-register"),
@@ -12,5 +12,10 @@ urlpatterns = [
     
     # Update Profile
     path("update-profile/", UpdateProfileView.as_view(), name="update-profile"),
+    
+    # get a user by id
+    path("users/<int:user_id>/", UserDetailAPIView.as_view(), name="user-detail"),
+    # Dashboard
+    path("dashboard/", DashboardAPIView.as_view(), name="dashboard-api"),
     
 ]
