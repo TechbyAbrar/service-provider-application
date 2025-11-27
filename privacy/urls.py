@@ -2,7 +2,7 @@ from django.urls import path
 from .views import (
     PrivacyPolicyView,
     AboutUsView,
-    TermsConditionsView, SubmitQuerryView, SubmitQuerryDetailView, ShareThoughtsView
+    TermsConditionsView, SubmitQuerryView, SubmitQuerryDetailView, ShareThoughtsView, ShareThoughtsDetailView
 )
 
 urlpatterns = [
@@ -16,4 +16,5 @@ urlpatterns = [
     
     #thoughts
     path('thoughts/', ShareThoughtsView.as_view(), name='share-thoughts'),
+    path('thoughts/<int:pk>/', ShareThoughtsDetailView.as_view(), name='share-thoughts'),
 ]

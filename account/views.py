@@ -140,6 +140,14 @@ from rest_framework.parsers import MultiPartParser, FormParser
 class UpdateProfileView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
+    
+    
+    def get(self, request):
+        serializer = UserSerializer(request.user)
+        return ResponseHandler.success(
+            message="User profile fetched successfully.",
+            data={"user": serializer.data}
+        )
 
     def patch(self, request):
         try:
@@ -234,3 +242,70 @@ class UserDetailAPIView(APIView):
         except Exception as e:
             logger.exception(f"Error fetching user {user_id}")
             return Response({"detail": "Error fetching user data"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        
+        
+# social auth
+
+from .utils import validate_google, validate_microsoft, validate_apple
+from .services import social_login
+from .serializers import UserSerializer
+
+class GoogleLoginView(APIView):
+    def post(self, request):
+        token = request.data.get("id_token")
+        if not token:
+            return ResponseHandler.bad_request(message="id_token required")
+
+        data = validate_google(token)
+        if not data:
+            return ResponseHandler.bad_request(message="Invalid Google token")
+
+        try:
+            user = social_login("google", data)
+            return ResponseHandler.success(
+                message="Google login successful.",
+                data=UserSerializer(user).data
+            )
+        except Exception as e:
+            return ResponseHandler.generic_error(exception=e)
+
+
+class MicrosoftLoginView(APIView):
+    def post(self, request):
+        token = request.data.get("access_token")
+        if not token:
+            return ResponseHandler.bad_request(message="access_token required")
+
+        data = validate_microsoft(token)
+        if not data:
+            return ResponseHandler.bad_request(message="Invalid Microsoft token")
+
+        try:
+            user = social_login("microsoft", data)
+            return ResponseHandler.success(
+                message="Microsoft login successful.",
+                data=UserSerializer(user).data
+            )
+        except Exception as e:
+            return ResponseHandler.generic_error(exception=e)
+
+
+class AppleLoginView(APIView):
+    def post(self, request):
+        token = request.data.get("identity_token")
+        if not token:
+            return ResponseHandler.bad_request(message="identity_token required")
+
+        data = validate_apple(token)
+        if not data:
+            return ResponseHandler.bad_request(message="Invalid Apple token")
+
+        try:
+            user = social_login("apple", data)
+            return ResponseHandler.success(
+                message="Apple login successful.",
+                data=UserSerializer(user).data
+            )
+        except Exception as e:
+            return ResponseHandler.generic_error(exception=e)

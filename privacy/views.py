@@ -170,3 +170,9 @@ class ShareThoughtsView(APIView):
                 message="created successfully!",
                 data= serializer.data
             )
+
+
+class ShareThoughtsDetailView(generics.RetrieveAPIView):
+    queryset = ShareThoughts.objects.select_related('user').all()
+    serializer_class = ShareThoughtsSerializer
+    permission_classes = [IsAuthenticated]

@@ -163,3 +163,60 @@ def validate_google_token(id_token: str) -> Optional[Dict[str, Any]]:
     except Exception as e:
         print("Google token validation failed:", str(e))
         return None
+
+
+
+# social auth
+import requests
+import jwt
+from typing import Optional, Dict
+
+
+def validate_google(id_token: str) -> Optional[Dict]:
+    """Validate Google token and return minimal user info."""
+    try:
+        res = requests.get(f"https://www.googleapis.com/oauth2/v3/tokeninfo?id_token={id_token}").json()
+        if "email" not in res:
+            return None
+        return {
+            "email": res.get("email"),
+            "full_name": res.get("name"),
+            "profile_pic_url": res.get("picture")
+        }
+    except Exception:
+        return None
+
+
+def validate_microsoft(access_token: str) -> Optional[Dict]:
+    """Validate Microsoft token and return minimal user info."""
+    try:
+        res = requests.get(
+            "https://graph.microsoft.com/v1.0/me",
+            headers={"Authorization": f"Bearer {access_token}"}
+        ).json()
+        email = res.get("mail") or res.get("userPrincipalName")
+        if not email:
+            return None
+        return {
+            "email": email,
+            "full_name": res.get("displayName"),
+            "profile_pic_url": None  # Microsoft profile picture requires extra API call
+        }
+    except Exception:
+        return None
+
+
+def validate_apple(identity_token: str) -> Optional[Dict]:
+    """Decode Apple JWT identity token and return minimal user info."""
+    try:
+        decoded = jwt.decode(identity_token, options={"verify_signature": False})
+        email = decoded.get("email")
+        if not email:
+            return None
+        return {
+            "email": email,
+            "full_name": decoded.get("name") or email.split("@")[0],
+            "profile_pic_url": None  # Apple does not provide picture
+        }
+    except Exception:
+        return None

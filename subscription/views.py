@@ -12,7 +12,7 @@ from .models import SubscriptionPlan, UserSubscription
 from .serializers import (
     SubscriptionPlanSerializer,
     CheckoutSessionSerializer,
-    UserSubscriptionSerializer,
+    UserSubscriptionSerializer, EarnListSerializer
 )
 from .services import StripeService
 
@@ -66,6 +66,15 @@ class SubscriptionPlanAPIView(APIView):
                 {"detail": str(e)},
                 status=500
             )
+            
+
+class SubscriptionPlanDetailAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, plan_id):
+        plan = get_object_or_404(SubscriptionPlan, id=plan_id)
+        serializer = SubscriptionPlanSerializer(plan)
+        return Response(serializer.data, status=200)
 
 
 # ============================
@@ -276,3 +285,36 @@ class StripeWebhookAPIView(APIView):
             f"[Webhook] Subscription {sub.id} updated: "
             f"status={status}, active {previous_active}->{sub.active}"
         )
+
+
+
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = "page_size"
+    max_page_size = 100
+
+
+from rest_framework.permissions import IsAdminUser
+class EarnListAPIView(APIView):
+    permission_classes = [IsAdminUser]
+    
+    def get(self, request):
+        try:
+            qs = (
+                UserSubscription.objects.select_related("user", "plan")
+                .filter(active=True)
+                .order_by("-start_date")
+            )
+
+            paginator = StandardResultsSetPagination()
+            page = paginator.paginate_queryset(qs, request)
+
+            serializer = EarnListSerializer(page, many=True)
+            return paginator.get_paginated_response(serializer.data)
+
+        except Exception as e:
+            logger.error(f"EarnList API error: {str(e)}")
+            return Response(
+                {"detail": "Something went wrong while fetching earnings."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )

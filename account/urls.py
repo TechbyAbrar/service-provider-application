@@ -1,5 +1,9 @@
 from django.urls import path
-from .views import (RegisterAPIView, VerifyOTPAPIView, ResendVerifyOTPAPIView, LoginView, ForgetPasswordView, VerifyForgetPasswordOTPView, ResetPasswordView, UpdateProfileView, DashboardAPIView, UserDetailAPIView)
+from .views import (RegisterAPIView, VerifyOTPAPIView, ResendVerifyOTPAPIView, 
+                    LoginView, ForgetPasswordView, 
+                    VerifyForgetPasswordOTPView, ResetPasswordView, 
+                    UpdateProfileView, DashboardAPIView, UserDetailAPIView,
+                    GoogleLoginView, MicrosoftLoginView, AppleLoginView)
 
 urlpatterns = [
     path("signup/", RegisterAPIView.as_view(), name="user-register"),
@@ -17,5 +21,11 @@ urlpatterns = [
     path("users/<int:user_id>/", UserDetailAPIView.as_view(), name="user-detail"),
     # Dashboard
     path("dashboard/", DashboardAPIView.as_view(), name="dashboard-api"),
+    
+    # social auth
+    path("social/google/", GoogleLoginView.as_view(), name="google-login"),
+    path("social/microsoft/", MicrosoftLoginView.as_view(), name="microsoft-login"),
+    path("social/apple/", AppleLoginView.as_view(), name="apple-login"),
+
     
 ]

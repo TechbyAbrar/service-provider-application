@@ -31,3 +31,22 @@ class CheckoutSessionSerializer(serializers.Serializer):
         if not SubscriptionPlan.objects.filter(id=value).exists():
             raise serializers.ValidationError("Invalid plan ID.")
         return value
+
+
+class EarnListSerializer(serializers.ModelSerializer):
+    full_name = serializers.CharField(source = 'user.full_name', read_only=True)
+    transaction_id = serializers.CharField(source = 'stripe_subscription_id', read_only=True)
+    plan_name = serializers.CharField(source='plan.name', read_only=True)
+    plan_price = serializers.DecimalField(source='plan.price', max_digits=8, decimal_places=2, read_only=True)
+    
+    class Meta:
+        model = UserSubscription
+        fields = [
+            "id",
+            "full_name",
+            "transaction_id",
+            "plan_name",
+            "plan_price",
+            "start_date",
+            "active",
+        ]

@@ -11,7 +11,52 @@ from rest_framework.exceptions import ValidationError
 
 User = get_user_model()
 
+# class UserSerializer(serializers.ModelSerializer):
+#     subscriptions = serializers.SerializerMethodField()
+
+#     class Meta:
+#         model = User
+#         fields = [
+#             "user_id",
+#             "email",
+#             "phone",
+#             "username",
+#             "full_name",
+#             "profile_pic",
+#             "profile_pic_url",
+#             "country",
+#             "bio",
+#             'company_name',
+#             'cvr_number',
+#             'bank_name',
+#             'account_number',
+#             'iban',
+#             'swift_ibc',
+#             'hourly_rate',
+#             'profit_on_materials',
+#             'risk_margin',
+#             "is_verified",
+#             "subscriptions",
+#             "created_at",
+#             "updated_at",
+#         ]
+#         read_only_fields = ["user_id", "is_verified", "created_at", "updated_at"]
+        
+#     def get_subscriptions(self, obj):
+#         return [
+#             {
+#                 "plan_name": s.plan.name,
+#                 "price": s.plan.price,
+#                 "start_date": s.start_date,
+#                 "end_date": s.end_date,
+#                 "active": s.active,
+#             }
+#             for s in obj.subscriptions.select_related("plan").all()
+#         ]
+
+
 class UserSerializer(serializers.ModelSerializer):
+    profile_picture = serializers.SerializerMethodField()
     subscriptions = serializers.SerializerMethodField()
 
     class Meta:
@@ -22,27 +67,37 @@ class UserSerializer(serializers.ModelSerializer):
             "phone",
             "username",
             "full_name",
-            "profile_pic",
-            "profile_pic_url",
+            "profile_picture",  # always returns the best available image
+            "profile_pic",      # actual ImageField
+            "profile_pic_url",  # external URL for social login
             "country",
             "bio",
-            'company_name',
-            'cvr_number',
-            'bank_name',
-            'account_number',
-            'iban',
-            'swift_ibc',
-            'hourly_rate',
-            'profit_on_materials',
-            'risk_margin',
+            "company_name",
+            "cvr_number",
+            "bank_name",
+            "account_number",
+            "iban",
+            "swift_ibc",
+            "hourly_rate",
+            "profit_on_materials",
+            "risk_margin",
             "is_verified",
             "subscriptions",
             "created_at",
             "updated_at",
         ]
         read_only_fields = ["user_id", "is_verified", "created_at", "updated_at"]
-        
+
+    def get_profile_picture(self, obj):
+        """Return local profile_pic if exists, otherwise use profile_pic_url."""
+        if obj.profile_pic and getattr(obj.profile_pic, 'url', None):
+            return obj.profile_pic.url
+        if obj.profile_pic_url:
+            return obj.profile_pic_url
+        return None
+
     def get_subscriptions(self, obj):
+        """Return serialized subscriptions."""
         return [
             {
                 "plan_name": s.plan.name,
@@ -298,3 +353,7 @@ class DashboardSerializer(serializers.Serializer):
     total_unverified = serializers.IntegerField()
     total_earnings = serializers.DecimalField(max_digits=15, decimal_places=2)
     users = serializers.ListField(child=serializers.DictField())
+
+
+
+
