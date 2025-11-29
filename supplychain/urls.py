@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import (SupplierListCreateAPI, SupplierDetailAPI,ResourceListCreateAPI, ResourceDetailAPI, TaskDetailAPIView, TaskListAPIView)
+from .views import (SupplierListCreateAPI, SupplierDetailAPI,ResourceListCreateAPI, ResourceDetailAPI, TaskDetailAPIView, TaskListAPIView, TaskByStatusView, NotificationListView)
 
 urlpatterns = [
     path('suppliers/', SupplierListCreateAPI.as_view(), name='supplier-list-create'),
@@ -14,4 +14,9 @@ urlpatterns = [
     # task management
     path('tasks/', TaskListAPIView.as_view(), name='task-list'),
     path('tasks/<str:pk>/', TaskDetailAPIView.as_view(), name='task-detail'),
+    
+    # check status
+    path('task/status/', TaskByStatusView.as_view(), name='task-by-status'),
+    # notifications
+    path('notifications/', NotificationListView.as_view(), name='notifications'),
 ]

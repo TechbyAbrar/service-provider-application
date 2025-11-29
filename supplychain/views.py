@@ -146,3 +146,44 @@ class TaskDetailAPIView(APIView):
 
         serializer = TaskSerializer(task)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
+import json
+class TaskByStatusView(APIView):
+
+    def get(self, request):
+        status_filter = request.query_params.get("status")  # e.g., ?status=Pending
+        if status_filter not in ["Pending", "Accepted", "Done", None]:
+            return Response({"error": "Invalid status"}, status=400)
+
+        tasks = Task.objects.all()
+        if status_filter:
+            tasks = tasks.filter(status=status_filter)
+
+        # Serialize tasks
+        serializer = TaskSerializer(tasks, many=True)
+
+        # Sum total from price JSON
+        total_sum = sum(
+            json.loads(task.price).get("Total", 0) for task in tasks
+        )
+
+        return Response({
+            "status": status_filter or "All",
+            "total_offers": tasks.count(),
+            "total_price": total_sum,
+            "tasks": serializer.data
+        })
+        
+        
+# notification
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from .models import Notification
+from .serializers import NotificationSerializer
+
+class NotificationListView(APIView):
+    def get(self, request):
+        notifications = Notification.objects.all().order_by('-created_at')
+        serializer = NotificationSerializer(notifications, many=True)
+        return Response(serializer.data)

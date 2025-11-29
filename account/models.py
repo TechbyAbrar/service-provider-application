@@ -60,6 +60,9 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    last_activity = models.DateTimeField(null=True, blank=True)
+
 
     # Required by Django
     USERNAME_FIELD = "email"

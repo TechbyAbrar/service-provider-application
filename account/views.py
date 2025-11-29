@@ -252,6 +252,8 @@ from .services import social_login
 from .serializers import UserSerializer
 
 class GoogleLoginView(APIView):
+    permission_classes = [AllowAny]
+
     def post(self, request):
         token = request.data.get("id_token")
         if not token:
@@ -263,15 +265,21 @@ class GoogleLoginView(APIView):
 
         try:
             user = social_login("google", data)
+            tokens = generate_tokens_for_user(user)
             return ResponseHandler.success(
                 message="Google login successful.",
-                data=UserSerializer(user).data
+                data={
+                    "user": UserSerializer(user).data,
+                    "tokens": tokens
+                }
             )
         except Exception as e:
             return ResponseHandler.generic_error(exception=e)
 
 
 class MicrosoftLoginView(APIView):
+    permission_classes = [AllowAny]
+
     def post(self, request):
         token = request.data.get("access_token")
         if not token:
@@ -283,15 +291,21 @@ class MicrosoftLoginView(APIView):
 
         try:
             user = social_login("microsoft", data)
+            tokens = generate_tokens_for_user(user)
             return ResponseHandler.success(
                 message="Microsoft login successful.",
-                data=UserSerializer(user).data
+                data={
+                    "user": UserSerializer(user).data,
+                    "tokens": tokens
+                }
             )
         except Exception as e:
             return ResponseHandler.generic_error(exception=e)
 
 
 class AppleLoginView(APIView):
+    permission_classes = [AllowAny]
+
     def post(self, request):
         token = request.data.get("identity_token")
         if not token:
@@ -303,9 +317,36 @@ class AppleLoginView(APIView):
 
         try:
             user = social_login("apple", data)
+            tokens = generate_tokens_for_user(user)
             return ResponseHandler.success(
                 message="Apple login successful.",
-                data=UserSerializer(user).data
+                data={
+                    "user": UserSerializer(user).data,
+                    "tokens": tokens
+                }
             )
         except Exception as e:
             return ResponseHandler.generic_error(exception=e)
+
+
+
+
+# user stats
+from django.utils import timezone
+from datetime import timedelta
+from account.models import User
+from supplychain.models import Task
+class SimpleStatsAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        now = timezone.now()
+        online_threshold = now - timedelta(minutes=5)
+
+        data = {
+            "active_users": User.objects.filter(is_active=True).count(),
+            "offers_created": Task.objects.count(),
+            "online_users": User.objects.filter(last_activity__gte=online_threshold).count(),
+        }
+
+        return Response(data)

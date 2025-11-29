@@ -12,7 +12,7 @@ from .models import SubscriptionPlan, UserSubscription
 from .serializers import (
     SubscriptionPlanSerializer,
     CheckoutSessionSerializer,
-    UserSubscriptionSerializer, EarnListSerializer
+    UserSubscriptionSerializer, EarnListSerializer, SubscriptionPlanUpdateSerializer
 )
 from .services import StripeService
 
@@ -75,6 +75,7 @@ class SubscriptionPlanDetailAPIView(APIView):
         plan = get_object_or_404(SubscriptionPlan, id=plan_id)
         serializer = SubscriptionPlanSerializer(plan)
         return Response(serializer.data, status=200)
+    
 
 
 # ============================
@@ -318,3 +319,49 @@ class EarnListAPIView(APIView):
                 {"detail": "Something went wrong while fetching earnings."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+            
+            
+# subscriptions/views.py
+
+class SubscriptionPlanUpdateDeleteAPIView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def patch(self, request, plan_id):
+        """Update ONLY name and features."""
+        plan = get_object_or_404(SubscriptionPlan, id=plan_id)
+
+        serializer = SubscriptionPlanUpdateSerializer(
+            plan, data=request.data, partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            with transaction.atomic():
+                updated_plan = serializer.save()
+
+            return Response(
+                SubscriptionPlanSerializer(updated_plan).data,
+                status=200
+            )
+
+        except Exception as e:
+            logger.exception("[Plan] Failed to update plan")
+            return Response({"detail": str(e)}, status=500)
+
+    def delete(self, request, plan_id):
+        """Delete plan and deactivate Stripe product."""
+        plan = get_object_or_404(SubscriptionPlan, id=plan_id)
+
+        try:
+            with transaction.atomic():
+                # Deactivate Stripe product + price (safe)
+                StripeService.deactivate_stripe_product(plan)
+
+                # Delete local plan
+                plan.delete()
+
+            return Response({"detail": "Plan deleted successfully."}, status=204)
+
+        except Exception as e:
+            logger.exception("[Plan] Failed to delete plan")
+            return Response({"detail": str(e)}, status=500)

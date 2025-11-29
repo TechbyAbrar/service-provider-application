@@ -3,7 +3,7 @@ from .views import (RegisterAPIView, VerifyOTPAPIView, ResendVerifyOTPAPIView,
                     LoginView, ForgetPasswordView, 
                     VerifyForgetPasswordOTPView, ResetPasswordView, 
                     UpdateProfileView, DashboardAPIView, UserDetailAPIView,
-                    GoogleLoginView, MicrosoftLoginView, AppleLoginView)
+                    GoogleLoginView, MicrosoftLoginView, AppleLoginView, SimpleStatsAPIView)
 
 urlpatterns = [
     path("signup/", RegisterAPIView.as_view(), name="user-register"),
@@ -21,6 +21,9 @@ urlpatterns = [
     path("users/<int:user_id>/", UserDetailAPIView.as_view(), name="user-detail"),
     # Dashboard
     path("dashboard/", DashboardAPIView.as_view(), name="dashboard-api"),
+    
+    # stats
+    path("stats/", SimpleStatsAPIView.as_view(), name="simple-stats"),
     
     # social auth
     path("social/google/", GoogleLoginView.as_view(), name="google-login"),

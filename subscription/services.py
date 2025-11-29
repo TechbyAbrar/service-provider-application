@@ -68,3 +68,27 @@ class StripeService:
         except Exception:
             logger.warning("[Stripe] Webhook verification failed")
             raise
+
+    @staticmethod
+    def deactivate_stripe_product(plan: SubscriptionPlan):
+        try:
+            price = stripe.Price.retrieve(plan.stripe_price_id)
+            product_id = price.product
+
+            # Deactivate the price (hides from dashboard)
+            stripe.Price.modify(
+                plan.stripe_price_id,
+                active=False
+            )
+
+            # Deactivate the product
+            stripe.Product.modify(
+                product_id,
+                active=False
+            )
+
+            logger.info(f"[Stripe] Deactivated product and price for plan {plan.id}")
+
+        except Exception as e:
+            logger.error(f"[Stripe] Failed to deactivate product for plan {plan.id}: {str(e)}")
+            # Do NOT raise. We still delete the local plan.

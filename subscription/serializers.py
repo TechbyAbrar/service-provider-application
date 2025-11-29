@@ -31,6 +31,14 @@ class CheckoutSessionSerializer(serializers.Serializer):
         if not SubscriptionPlan.objects.filter(id=value).exists():
             raise serializers.ValidationError("Invalid plan ID.")
         return value
+    
+    
+# subscriptions/serializers.py
+class SubscriptionPlanUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SubscriptionPlan
+        fields = ("name", "features")   # update-only fields
+
 
 
 class EarnListSerializer(serializers.ModelSerializer):

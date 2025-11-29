@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Supplier, Resource, Task
+from .models import Supplier, Resource, Task, Notification
 
 
 class SupplierSerializer(serializers.ModelSerializer):
@@ -58,3 +58,12 @@ class TaskSerializer(serializers.ModelSerializer):
             return json.loads(obj.price)
         except:
             return {}
+
+
+
+
+# Notification
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notification
+        fields = ['id', 'message', 'created_at', 'read']
