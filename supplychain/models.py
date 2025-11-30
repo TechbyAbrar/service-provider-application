@@ -66,7 +66,7 @@ class Task(models.Model):
     user_id = models.BigIntegerField()
     materials_ordered = models.BooleanField()
     
-    timestamp = models.DateTimeField()
+    project_start = models.DateField()
     created_at = models.DateTimeField()
     updated_at = models.DateTimeField()
 

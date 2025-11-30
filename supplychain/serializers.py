@@ -44,7 +44,7 @@ class TaskSerializer(serializers.ModelSerializer):
         fields = [
             "id", "user_id", "customer_name", "phone_number", "address",
             "task_description", "bill_of_materials", "time", "resource",
-            "status", "materials_ordered", "price",  "timestamp", "created_at", "updated_at"
+            "status", "materials_ordered", "price",  "project_start", "created_at", "updated_at"
         ]
 
     def get_bill_of_materials(self, obj):
