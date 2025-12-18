@@ -3,6 +3,8 @@ from multiselectfield import MultiSelectField
 
 # Create your models here.
 class Supplier(models.Model):
+    supervisor = models.ForeignKey('account.User', on_delete=models.CASCADE, related_name='suppliers')
+    
     supplier_name = models.CharField(max_length=255)
     supplier_email = models.EmailField()
     phone_number = models.CharField(max_length=20, blank=True, null=True)
@@ -15,13 +17,12 @@ class Supplier(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
 
-    
-
     def __str__(self):
         return self.supplier_name
     
     
 class Resource(models.Model):
+    supervisor = models.ForeignKey('account.User', on_delete=models.CASCADE, related_name='resources')
     DAYS_OF_WEEK = [
         ('Monday', 'Monday'),
         ('Tuesday', 'Tuesday'),

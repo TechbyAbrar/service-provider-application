@@ -10,11 +10,15 @@ from core.utils import ResponseHandler
 # SUPPLIER APIs
 # ------------------------------
 
+# ------------------------------
+# SUPPLIER APIs
+# ------------------------------
 class SupplierListCreateAPI(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        suppliers = Supplier.objects.all().order_by("-created_at")
+        # Only fetch suppliers belonging to the logged-in supervisor
+        suppliers = Supplier.objects.filter(supervisor=request.user).order_by("-created_at")
         serializer = SupplierSerializer(suppliers, many=True)
         return ResponseHandler.success(data=serializer.data, message="Suppliers fetched successfully.")
 
@@ -22,7 +26,8 @@ class SupplierListCreateAPI(APIView):
     def post(self, request):
         serializer = SupplierSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            # Save supervisor as request.user
+            serializer.save(supervisor=request.user)
             return ResponseHandler.created(data=serializer.data)
         return ResponseHandler.bad_request(errors=serializer.errors, message="Supplier creation failed.")
 
@@ -30,24 +35,17 @@ class SupplierListCreateAPI(APIView):
 class SupplierDetailAPI(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get_object(self, pk):
-        try:
-            return Supplier.objects.get(pk=pk)
-        except Supplier.DoesNotExist:
-            return None
+    def get_object(self, pk, user):
+        # Ensure only the supervisor who owns this supplier can access
+        return get_object_or_404(Supplier, pk=pk, supervisor=user)
 
     def get(self, request, pk):
-        supplier = self.get_object(pk)
-        if not supplier:
-            return ResponseHandler.not_found(message="Supplier not found.")
+        supplier = self.get_object(pk, request.user)
         return ResponseHandler.success(data=SupplierSerializer(supplier).data)
 
     @transaction.atomic
     def patch(self, request, pk):
-        supplier = self.get_object(pk)
-        if not supplier:
-            return ResponseHandler.not_found(message="Supplier not found.")
-
+        supplier = self.get_object(pk, request.user)
         serializer = SupplierSerializer(supplier, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -56,10 +54,7 @@ class SupplierDetailAPI(APIView):
 
     @transaction.atomic
     def delete(self, request, pk):
-        supplier = self.get_object(pk)
-        if not supplier:
-            return ResponseHandler.not_found(message="Supplier not found.")
-
+        supplier = self.get_object(pk, request.user)
         supplier.delete()
         return ResponseHandler.deleted(message="Supplier deleted successfully.")
 
@@ -67,12 +62,11 @@ class SupplierDetailAPI(APIView):
 # ------------------------------
 # RESOURCE APIs
 # ------------------------------
-
 class ResourceListCreateAPI(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        resources = Resource.objects.all()
+        resources = Resource.objects.filter(supervisor=request.user)
         serializer = ResourceSerializer(resources, many=True)
         return ResponseHandler.success(data=serializer.data, message="Resources fetched successfully.")
 
@@ -80,32 +74,24 @@ class ResourceListCreateAPI(APIView):
     def post(self, request):
         serializer = ResourceSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            serializer.save(supervisor=request.user)
             return ResponseHandler.created(data=serializer.data)
         return ResponseHandler.bad_request(errors=serializer.errors, message="Resource creation failed.")
 
-
+from django.shortcuts import get_object_or_404
 class ResourceDetailAPI(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get_object(self, pk):
-        try:
-            return Resource.objects.get(pk=pk)
-        except Resource.DoesNotExist:
-            return None
+    def get_object(self, pk, user):
+        return get_object_or_404(Resource, pk=pk, supervisor=user)
 
     def get(self, request, pk):
-        resource = self.get_object(pk)
-        if not resource:
-            return ResponseHandler.not_found(message="Resource not found.")
+        resource = self.get_object(pk, request.user)
         return ResponseHandler.success(data=ResourceSerializer(resource).data)
 
     @transaction.atomic
     def patch(self, request, pk):
-        resource = self.get_object(pk)
-        if not resource:
-            return ResponseHandler.not_found(message="Resource not found.")
-
+        resource = self.get_object(pk, request.user)
         serializer = ResourceSerializer(resource, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -114,12 +100,10 @@ class ResourceDetailAPI(APIView):
 
     @transaction.atomic
     def delete(self, request, pk):
-        resource = self.get_object(pk)
-        if not resource:
-            return ResponseHandler.not_found(message="Resource not found.")
-
+        resource = self.get_object(pk, request.user)
         resource.delete()
         return ResponseHandler.deleted(message="Resource deleted successfully.")
+
     
     
 

@@ -3,14 +3,16 @@ from .models import Supplier, Resource, Task, Notification
 
 
 class SupplierSerializer(serializers.ModelSerializer):
+    supervisor = serializers.ReadOnlyField(source='supervisor.user_id')
     class Meta:
         model = Supplier
-        fields = ['id', 'supplier_name', 'supplier_email', 'phone_number', 'profile_picture', 'materials_supplied', 'created_at', 'updated_at']
+        fields = ['id', 'supervisor', 'supplier_name', 'supplier_email', 'phone_number', 'profile_picture', 'materials_supplied', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
         
         
 
 class ResourceSerializer(serializers.ModelSerializer):
+    supervisor = serializers.ReadOnlyField(source='supervisor.user_id')
     # Make 'days' a list in the API
     days = serializers.ListField(
         child=serializers.ChoiceField(choices=[day[0] for day in Resource.DAYS_OF_WEEK])
@@ -19,7 +21,7 @@ class ResourceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Resource
         fields = [
-            'id', 'name', 'role', 'email', 'phone_number',
+            'id', 'supervisor', 'name', 'role', 'email', 'phone_number',
             'add_to_calender', 'days', 'start_time', 'end_time',
             'created_at', 'updated_at'
         ]
