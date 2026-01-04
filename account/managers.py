@@ -3,10 +3,6 @@ from django.utils.translation import gettext_lazy as _
 
 
 class UserManager(BaseUserManager):
-    """
-    Custom manager for User model supporting email, phone, and username.
-    """
-
     def _create_user(self, email=None, phone=None, username=None, password=None, **extra_fields):
         if not email and not phone and not username:
             raise ValueError(_("User must have at least one identifier: email, phone, or username"))

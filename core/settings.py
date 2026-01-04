@@ -49,15 +49,15 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     
+    # Third party apps
+    "rest_framework",
+    "corsheaders",
+    
     # Local apps
     'account',
     'privacy',
     'supplychain',
     'subscription',
-    
-    # Third party apps
-    "rest_framework",
-    "corsheaders",
 ]
 
 AUTH_USER_MODEL = "account.User"

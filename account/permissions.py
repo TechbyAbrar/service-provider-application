@@ -1,6 +1,5 @@
 from rest_framework import permissions
 
-
 class IsOwnerOrSuperuser(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.method in permissions.SAFE_METHODS:
@@ -9,10 +8,6 @@ class IsOwnerOrSuperuser(permissions.BasePermission):
 
 
 class IsSuperUserOrReadOnly(permissions.BasePermission):
-    """
-    Allow only superusers to create/update/delete.
-    All users can read (GET).
-    """
     def has_permission(self, request, view):
         if request.method in permissions.SAFE_METHODS:
             return True
