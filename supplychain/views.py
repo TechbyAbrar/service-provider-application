@@ -133,22 +133,55 @@ class TaskDetailAPIView(APIView):
     
 
 import json
+# from django.utils.dateparse import parse_date
+# from rest_framework.views import APIView
+# from rest_framework.response import Response
+# import json
+# from .models import Task
+# from .serializers import TaskSerializer
+
 # class TaskByStatusView(APIView):
+
+#     ALLOWED_STATUSES = {"Pending", "Accepted", "Done"}
 
 #     def get(self, request):
 #         status_filter = request.query_params.get("status")
-#         if status_filter not in ["Pending", "Accepted", "Done", None]:
-#             return Response({"error": "Invalid status"}, status=400)
+#         year = request.query_params.get("year")
+#         month = request.query_params.get("month")
+#         date_str = request.query_params.get("date")
 
 #         tasks = Task.objects.all()
+
+#         # Filter by status
 #         if status_filter:
+#             if status_filter not in self.ALLOWED_STATUSES:
+#                 return Response({"error": "Invalid status"}, status=400)
 #             tasks = tasks.filter(status=status_filter)
+
+#         # Filter by exact date
+#         if date_str:
+#             parsed_date = parse_date(date_str)
+#             if not parsed_date:
+#                 return Response({"error": "Invalid date format"}, status=400)
+#             tasks = tasks.filter(created_at__date=parsed_date)
+
+#         else:
+#             # Filter by year
+#             if year:
+#                 tasks = tasks.filter(created_at__year=int(year))
+#             # Filter by month
+#             if month:
+#                 tasks = tasks.filter(created_at__month=int(month))
 
 #         serializer = TaskSerializer(tasks, many=True)
 
-#         total_sum = sum(
-#             json.loads(task.price).get("Total", 0) for task in tasks
-#         )
+#         # Calculate total price
+#         total_sum = 0
+#         for task in tasks:
+#             try:
+#                 total_sum += json.loads(task.price).get("Total", 0)
+#             except Exception:
+#                 pass
 
 #         return Response({
 #             "status": status_filter or "All",
@@ -158,65 +191,108 @@ import json
 #         })
 
 
-
+from datetime import timedelta
+from django.utils import timezone
 from django.utils.dateparse import parse_date
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework import status
 import json
-from .models import Task
-from .serializers import TaskSerializer
 
 class TaskByStatusView(APIView):
 
     ALLOWED_STATUSES = {"Pending", "Accepted", "Done"}
+    ALLOWED_PERIODS = {"today", "week", "month"}
 
     def get(self, request):
         status_filter = request.query_params.get("status")
+        period = request.query_params.get("period")  # today | week | month
         year = request.query_params.get("year")
         month = request.query_params.get("month")
         date_str = request.query_params.get("date")
 
         tasks = Task.objects.all()
 
-        # Filter by status
+        # -------------------------
+        # Status filter
+        # -------------------------
         if status_filter:
             if status_filter not in self.ALLOWED_STATUSES:
-                return Response({"error": "Invalid status"}, status=400)
+                return Response(
+                    {"error": "Invalid status"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             tasks = tasks.filter(status=status_filter)
 
-        # Filter by exact date
+        # -------------------------
+        # Date-based filtering priority
+        # date > period > year/month
+        # -------------------------
+        now = timezone.localdate()
+
         if date_str:
             parsed_date = parse_date(date_str)
             if not parsed_date:
-                return Response({"error": "Invalid date format"}, status=400)
+                return Response(
+                    {"error": "Invalid date format. Use YYYY-MM-DD"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             tasks = tasks.filter(created_at__date=parsed_date)
 
+        elif period:
+            if period not in self.ALLOWED_PERIODS:
+                return Response(
+                    {"error": "Invalid period. Use today, week, or month"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if period == "today":
+                tasks = tasks.filter(created_at__date=now)
+
+            elif period == "week":
+                start_of_week = now - timedelta(days=now.weekday())
+                end_of_week = start_of_week + timedelta(days=6)
+                tasks = tasks.filter(
+                    created_at__date__range=(start_of_week, end_of_week)
+                )
+
+            elif period == "month":
+                tasks = tasks.filter(
+                    created_at__year=now.year,
+                    created_at__month=now.month,
+                )
+
         else:
-            # Filter by year
             if year:
                 tasks = tasks.filter(created_at__year=int(year))
-            # Filter by month
             if month:
                 tasks = tasks.filter(created_at__month=int(month))
 
+        # -------------------------
+        # Serialize
+        # -------------------------
         serializer = TaskSerializer(tasks, many=True)
 
-        # Calculate total price
-        total_sum = 0
-        for task in tasks:
+        # -------------------------
+        # Total price calculation
+        # -------------------------
+        total_price = 0
+        for task in tasks.only("price"):
             try:
-                total_sum += json.loads(task.price).get("Total", 0)
-            except Exception:
-                pass
+                total_price += json.loads(task.price).get("Total", 0)
+            except (TypeError, ValueError):
+                continue
 
-        return Response({
-            "status": status_filter or "All",
-            "total_offers": tasks.count(),
-            "total_price": total_sum,
-            "tasks": serializer.data
-        })
-
-
+        return Response(
+            {
+                "status": status_filter or "All",
+                "period": period,
+                "total_offers": tasks.count(),
+                "total_price": total_price,
+                "tasks": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
 
         
 # notification

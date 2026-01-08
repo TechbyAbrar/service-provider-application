@@ -11,50 +11,6 @@ from rest_framework.exceptions import ValidationError
 
 User = get_user_model()
 
-# class UserSerializer(serializers.ModelSerializer):
-#     subscriptions = serializers.SerializerMethodField()
-
-#     class Meta:
-#         model = User
-#         fields = [
-#             "user_id",
-#             "email",
-#             "phone",
-#             "username",
-#             "full_name",
-#             "profile_pic",
-#             "profile_pic_url",
-#             "country",
-#             "bio",
-#             'company_name',
-#             'cvr_number',
-#             'bank_name',
-#             'account_number',
-#             'iban',
-#             'swift_ibc',
-#             'hourly_rate',
-#             'profit_on_materials',
-#             'risk_margin',
-#             "is_verified",
-#             "subscriptions",
-#             "created_at",
-#             "updated_at",
-#         ]
-#         read_only_fields = ["user_id", "is_verified", "created_at", "updated_at"]
-        
-#     def get_subscriptions(self, obj):
-#         return [
-#             {
-#                 "plan_name": s.plan.name,
-#                 "price": s.plan.price,
-#                 "start_date": s.start_date,
-#                 "end_date": s.end_date,
-#                 "active": s.active,
-#             }
-#             for s in obj.subscriptions.select_related("plan").all()
-#         ]
-
-
 class UserSerializer(serializers.ModelSerializer):
     profile_picture = serializers.SerializerMethodField()
     subscriptions = serializers.SerializerMethodField()
