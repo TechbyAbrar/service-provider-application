@@ -1,0 +1,145 @@
+#run backend_core_engine
+
+gunicorn core.asgi:application \
+  -k uvicorn.workers.UvicornWorker \
+  --workers 4 \
+  --threads 2 \
+  --bind 0.0.0.0:8001 \
+  --timeout 60 \
+  --graceful-timeout 30 \
+  --keep-alive 5 \
+  --max-requests 2000 \
+  --max-requests-jitter 200 \
+  --access-logfile - \
+  --error-logfile - \
+  --log-level info
+
+==============================================================================
+# rus redis server
+redis-server
+=============================================================================
+
+#Add a service file in vps
+
+sudo nano /etc/systemd/system/service_provider.service
+
+
+#Add this service
+==========================================================================
+
+[Unit]
+Description=Service Provider (Django ASGI) - Gunicorn with UvicornWorker
+After=network.target
+
+[Service]
+Type=simple
+
+# IMPORTANT: change these 2 lines to your actual VPS user + project path
+User=backend_dev    #user your user 
+Group=www-data
+WorkingDirectory=/var/www/service_provider
+
+# Environment variables (adjust if needed)
+Environment="DJANGO_SETTINGS_MODULE=core.settings"
+Environment="PYTHONUNBUFFERED=1"
+
+# If you use .env file, you can also load it like this:
+# EnvironmentFile=/var/www/service_provider/.env
+
+# Use venv gunicorn
+ExecStart=/var/www/service_provider/env/bin/gunicorn core.asgi:application \
+  -k uvicorn.workers.UvicornWorker \
+  --workers 4 \
+  --threads 2 \
+  --bind 0.0.0.0:8001 \
+  --timeout 60 \
+  --graceful-timeout 30 \
+  --keep-alive 5 \
+  --max-requests 2000 \
+  --max-requests-jitter 200 \
+  --access-logfile - \
+  --error-logfile - \
+  --log-level info
+
+Restart=always
+RestartSec=3
+
+# Open file limits (nice for production)
+LimitNOFILE=65535
+
+# Logs go to journald
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+
+============================================================
+#Add # enable service file
+
+sudo systemctl daemon-reload
+sudo systemctl enable service_provider
+sudo systemctl start service_provider
+sudo systemctl restart service_provider
+sudo systemctl status service_provider
+
+
+#Add Nginx setup
+sudo apt update
+sudo apt install nginx -y
+
+sudo systemctl start nginx
+sudo systemctl enable nginx
+
+sudo systemctl status nginx
+
+sudo ufw allow 'Nginx Full'
+sudo ufw reload
+==============================================================
+#create nginx file
+sudo nano /etc/nginx/sites-available/service_provider
+===============================================================
+
+server {
+    listen 80;
+    server_name example.com www.example.com;    #connect your dns data individually create file for dashboard, backend, frontend
+
+    # Max upload size (adjust if needed)
+    client_max_body_size 50M;
+
+    # Static files
+    location /static/ {
+        alias /var/www/service_provider/static/;
+    }
+
+    location /media/ {
+        alias /var/www/service_provider/media/;
+    }
+
+    # Proxy to Gunicorn (ASGI)
+    location / {
+        proxy_pass http://127.0.0.1:8001;
+        proxy_http_version 1.1;
+
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_redirect off;
+    }
+}
+
+
+#Add Enable this nginx proxy
+
+sudo ln -s /etc/nginx/sites-available/service_provider /etc/nginx/sites-enabled/
+
+
+
+sudo nginx -t
+sudo systemctl reload nginx
+
+
