@@ -208,56 +208,81 @@ CORS_ALLOW_CREDENTIALS = True
 
 
 
-# Ensure logs directory exists
-LOG_FILE_DIR = BASE_DIR / "logs"
-LOG_FILE_DIR.mkdir(exist_ok=True)
+# Logging Configuration
 
-# Automatically delete old log files (>5 days)
-for f in LOG_FILE_DIR.glob("bugsfixing.log.*"):
-    try:
-        date_str = f.name.split(".")[-1]
-        file_date = datetime.strptime(date_str, "%Y-%m-%d")
-        if datetime.now() - file_date > timedelta(days=5):
-            f.unlink()
-    except Exception:
-        pass  # skip files that do not match the pattern
+# settings.py
+LOG_DIR = BASE_DIR / "logs"
+LOG_DIR.mkdir(parents=True, exist_ok=True)
 
-# Generate today’s log file path
-today = datetime.now().strftime("%Y-%m-%d")
-log_file_path = LOG_FILE_DIR / f"bugsfixing.log.{today}"
-
-# Simplified LOGGING dict
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
 
     "formatters": {
-        "simple": {
-            "format": "[{levelname}] {message}",
+        "default": {
+            "format": "[{asctime}] [{levelname}] {message}",
+            "style": "{",
+        },
+        "access": {
+            "format": "[{asctime}] {message}",
             "style": "{",
         },
     },
 
     "handlers": {
-        "file": {
-            "level": "INFO",  # Only log success and failures, not debug
-            "class": "logging.FileHandler",
-            "filename": str(log_file_path),
-            "formatter": "simple",
+        "access_file": {
+            "class": "logging.handlers.TimedRotatingFileHandler",
+            "level": "INFO",
+            "filename": LOG_DIR / "access.log",
+            "when": "D",          # rotate daily
+            "interval": 1,
+            "backupCount": 7,     # keep 7 days only
+            "formatter": "access",
+            "encoding": "utf-8",
+        },
+        "error_file": {
+            "class": "logging.handlers.TimedRotatingFileHandler",
+            "level": "ERROR",
+            "filename": LOG_DIR / "error.log",
+            "when": "D",          # rotate daily
+            "interval": 1,
+            "backupCount": 7,     # keep 7 days only
+            "formatter": "default",
             "encoding": "utf-8",
         },
         "console": {
             "class": "logging.StreamHandler",
-            "formatter": "simple",
+            "level": "INFO",
+            "formatter": "default",
         },
     },
 
     "loggers": {
-        "myapp": {
-            "handlers": ["file", "console"],
-            "level": "INFO",  # Only info and error
+        "django.server": {
+            "handlers": ["access_file", "console"],
+            "level": "INFO",
             "propagate": False,
         },
+        "django.request": {
+            "handlers": ["error_file", "console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "gunicorn.access": {
+            "handlers": ["access_file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "gunicorn.error": {
+            "handlers": ["error_file", "console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+
+    "root": {
+        "handlers": ["error_file", "console"],
+        "level": "ERROR",
     },
 }
 
